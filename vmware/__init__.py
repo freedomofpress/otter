@@ -1,7 +1,58 @@
 import logging
 import ssl
+from enum import Enum
 from pyVim.connect import SmartConnect, Disconnect
 from pyVmomi import vim
+
+class NetworkCard():
+    def __init__(self, network_card_object):
+        self.network_card_object = network_card_object
+        self.key = network_card_object.key
+        self.mac = network_card_object.macAddress
+        self.connected = network_card_object.connectable.connected
+        self.label = network_card_object.deviceInfo.label
+        self.summary = network_card_object.deviceInfo.summary
+
+    def print(self):
+        print(f"Key:\t\t{self.key}")
+        print(f"Label:\t\t{self.label}")
+        print(f"MAC:\t\t{self.mac}")
+
+class SerialPortType(Enum):
+    PIPE = 1
+    NETWORK = 2
+
+class SerialPort:
+    def __init__(self, port_object):
+        self.port_object = port_object
+        self.key = port_object.key
+        self.label = port_object.deviceInfo.label
+        self.summary = port_object.deviceInfo.summary
+        self.connected = port_object.connectable.connected
+        self.auto_connect = port_object.connectable.startConnected
+        self.linux_device = f"/dev/ttyS{self.key - 9000}"
+
+        if isinstance(port_object.backing, vim.vm.device.VirtualSerialPort.PipeBackingInfo):
+            self.type = SerialPortType.PIPE
+            self.pipe_name = port_object.backing.pipeName
+            self.pipe_endpoint =  port_object.backing.endpoint
+
+        elif isinstance(port_object.backing, vim.vm.device.VirtualSerialPort.URIBackingInfo):
+            self.type = SerialPortType.NETWORK
+            logging.warning("TODO: implement support for network serial ports, requires paid ESX license")
+
+        else:
+            logging.warning("Found non network or pipe serial port, unsupported serial access")
+
+    def print(self):
+        print(f"Key:\t\t{self.key}")
+        print(f"Type:\t\t{self.type}")
+        print(f"Label:\t\t{self.label}")
+        print(f"Device:\t\t{self.linux_device}")
+        if self.type == SerialPortType.PIPE:
+            print(f"PIPE Name:\t{self.pipe_name}")
+            print(f"PIPE Endpoint:\t{self.pipe_endpoint}")
+
 
 class Snapshot:
     def __init__(self, snapshot_object, parent=None, connection=None):
@@ -44,9 +95,11 @@ class Snapshot:
 
 
 class Machine:
-    def __init__(self, vmware_object, connection=None):
+    def __init__(self, vmware_object, connection=None, adapter=None):
         if connection:
             self.connection = connection
+        if adapter:
+            self.adapter = adapter
         self.vmware_object = vmware_object
         self.moid = vmware_object._moId
         summary = vmware_object.summary
@@ -62,7 +115,7 @@ class Machine:
 
     def print(self):
         print(f"Id:\t\t{self.moid}")
-        print(f"Name:\t\t{self.name}")
+        print(f"Label:\t\t{self.name}")
         print(f"PowerState:\t{self.powerstate}")
 
     def updateInfo(self):
@@ -133,10 +186,72 @@ class Machine:
         else:
             logging.warning("Connection object not provided when instantiating VM object")
 
-        return f"vmrc://clone:{session}@127.0.0.1:8443/?moid={self.moid}"
+        return f"vmrc://clone:{session}@host:port/?moid={self.moid}"
 
-    def getSerialPorts(self):
-        return
+    # Just return the info about serialports
+    def listSerialPorts(self):
+        serial_ports = []
+        for device in self.vmware_object.config.hardware.device:
+            if isinstance(device, vim.vm.device.VirtualSerialPort):
+                serial_ports.append(SerialPort(device))
+        return serial_ports
+
+    def listNetworkCards(self):
+        logging.info("listNetworkCards() lists only VMXNET3 type cards!")
+        network_cards = []
+        for device in self.vmware_object.config.hardware.device:
+            if isinstance(device, vim.vm.device.VirtualVmxnet3):
+                network_cards.append(NetworkCard(device))
+        return network_cards
+
+    # we shall support 2 options here
+    # if ESX is licensed, then we can have network serial ports and everything is easier, and this node can be remote
+    # if esx is unlicensed, then serial ports and only be named pipes, and the far end is this local machine
+    # which needs to be in the hypervisor as the testing vms
+    def getSerialPort(self, localvm=None):
+        # we refer to target as the vm where the test have to be run
+        # and to local as the machine where this script is running
+        target_serial_ports = self.listSerialPorts()
+        # attempt searching for the local vm in the vmware node based on mac address
+        # otherwise provide the label in "localvm"
+
+        # if a network port is available, we choose the first one in the list
+        for target_serial_port in target_serial_ports:
+            if target_serial_port.type == SerialPortType.NETWORK:
+                logging.error("Network serial port found but support not complete")
+                return False
+
+        if not self.adapter:
+            logging.error("An adapter object has to be passed to automatically find a pipe serial port")
+            return False
+        if localvm:
+            # if a label is provided use that
+            local = self.adapter.getMachineByName(localvm)
+        else:
+            # otherwise search by mac address the local machine
+            from uuid import getnode
+            mac = hex(getnode())[2:]
+            local = self.adapter.getMachineByMAC(mac)
+        if not local:
+            logging.error("Unable to find the test machine on the vmware server")
+            return False
+        
+        local.print()
+        local_serial_ports = local.listSerialPorts()
+
+        # lol this is ugly but here we are
+        for target_serial_port in target_serial_ports:
+            if target_serial_port.type == SerialPortType.PIPE:
+                print(local_serial_ports)
+                for local_serial_port in local_serial_ports:
+                    if (local_serial_port.type == SerialPortType.PIPE and
+                        local_serial_port.pipe_name == target_serial_port.pipe_name and
+                        local_serial_port.endpoint == "client" and
+                        target_serial_port.endpoint == "server"):
+                            logging.info(f"Local port should be {local_serial_port.linux_device}, target port should be {target_serial_port.linux_device}")
+                            return local_serial_port.linux_device
+                            # we have a match!
+
 
     def getScreenshot(self):
         # call getVNC
@@ -151,7 +266,7 @@ class Machine:
         return self.vmware_object.PowerOn()
 
 class vmwareAdapter:
-    def __init__(self, username, password, host, headers={}, verify=True):
+    def __init__(self, username, password, host, vmname="", headers={}, verify=True):
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS)
 
         if not verify:
@@ -160,6 +275,7 @@ class vmwareAdapter:
         try:
             self.connection = SmartConnect(user=username, pwd=password, host=host, sslContext=ssl_context, customHeaders=headers)
             self.host = host
+            self.vmname = vmname
 
         except Exception as e:
             logging.error(f"Failed to connect to ESX at host {host}:\n{e}")
@@ -169,10 +285,13 @@ class vmwareAdapter:
     def getInfo(self):
         return
 
+    # Helper func
     def createMachineObject(self, virtual_machine):
-        machine_object = Machine(virtual_machine, self.connection)
+        machine_object = Machine(virtual_machine, self.connection, adapter=self)
         return machine_object
 
+    # Returns a list of "Machine" objects. Machine is a custom made class, but it also contains the original
+    # pyvmomi object which remains accessible
     def listMachines(self):
         content = self.connection.RetrieveContent()
 
@@ -187,15 +306,28 @@ class vmwareAdapter:
             machines.append(self.createMachineObject(virtual_machine))
         return machines
 
-    def getFreeMachine(self):
-        return
-
-    def getMachineByName(self, name):
+    # Scans true the VMs on the ESX host looking for one including the name and powered off
+    def getFreeMachine(self, name=""):
         for machine in self.listMachines():
-            if name == machine.name:
+            if name.lower() in machine.name.lower() and machine.powerstate == vim.VirtualMachinePowerState.poweredOff:
                 return machine
         return False
 
+    # Lookup a VM by name, case insensitive
+    def getMachineByName(self, name):
+        for machine in self.listMachines():
+            if name.lower() in machine.name.lower():
+                return machine
+        return False
+
+    def getMachineByMAC(self, mac):
+        for machine in self.listMachines():
+            for network_card in machine.listNetworkCards():
+                if mac.lower() in network_card.mac.lower() or mac in network_card.mac.lower().replace(":", "").lstrip("0"):
+                    return machine
+        return False
+
+    # We do not want a loose match here, so we expect the name to match erfectly
     def killMachineByName(self, name):
         for machine in self.listMachines():
             if name == machine.name:
