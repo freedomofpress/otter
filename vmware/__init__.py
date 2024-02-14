@@ -113,13 +113,13 @@ class Machine:
         self.ip = summary.guest.ipAddress
         self.tools = summary.guest.toolsStatus
 
+        # list of tuples in the form, (Popen obj, vnc port)
+        self.vnc_instances = []
+
     def print(self):
         print(f"Id:\t\t{self.moid}")
         print(f"Label:\t\t{self.name}")
         print(f"PowerState:\t{self.powerstate}")
-
-    def updateInfo(self):
-        return
 
     def getPowerState(self):
         if self.powerstate == vim.VirtualMachinePowerState.poweredOn:
@@ -164,19 +164,52 @@ class Machine:
         logging.info(f"Snapshot {name} not found")
         return
 
+    # TODO: ensure that the machine is on before acquiring the websocket ticket
     def getMKS(self):
-        if self.powerstate == vim.VirtualMachinePowerState.poweredOn:
-            return self.vmware_object.AcquireTicket("webmks").ticket
-        else:
-            logging.warning(f"Machine {self.name} is powered off, so no websocket available")
-            return False
+        return self.vmware_object.AcquireTicket("webmks").ticket
 
-    def getVNC(self, port):
-        assert(port > 1024 and port <= 65535)
+    def getVNC(self, port=None, local=True):
         logging.info("VNC is not natively available, using websocket ticket + websocket forwarder")
         ticket = self.getMKS()
-        url = f"wss://host/ticket/{ticket}"
-        return
+        url = f"wss://{self.adapter.host}/ticket/{ticket}"
+        if local:
+            ip = "127.0.0.1"
+        else:
+            ip = "0.0.0.0"
+        if self.adapter.verify:
+            verify = ""
+        else:
+            verify = "-k"
+        from shutil import which
+        if not which("websocat"):
+            logging.error("websocat not found in PATH")
+            return False
+
+        # silly hack to quickly find a free port
+        if not port:
+            from socket import socket
+            with socket() as s:
+                s.bind(('',0))
+                port = s.getsockname()[1]
+
+        from subprocess import Popen
+        #from os import system
+        logging.info("Running websocat on {ip}:{port} target {url}, verify = {verify}")
+        proc = Popen(["websocat", "-b", f"tcp-listen:{ip}:{port}", url, verify, "--protocol", "binary, vmware-vvc"])
+        #exec = system(f"websocat -b tcp-listen:{ip}:{port} {url} {verify} --protocol 'binary, vmware-vvc'")
+        self.vnc_instances.append((proc, port))
+        return port
+
+    def killVNC(self, ports=[]):
+        # TODO: find if kill() is better suioted than terminate()
+        for instance in self.vnc_instances:
+            # if ports is none, kill all
+            if len(ports) == 0:
+                instance[0].terminate()
+            else:
+                for port in ports:
+                    if instance[1] == port:
+                        instance[0].terminate()
 
     def getVMRC(self):
         if self.connection:
@@ -236,18 +269,16 @@ class Machine:
             logging.error("Unable to find the test machine on the vmware server")
             return False
         
-        local.print()
         local_serial_ports = local.listSerialPorts()
 
         # lol this is ugly but here we are
         for target_serial_port in target_serial_ports:
             if target_serial_port.type == SerialPortType.PIPE:
-                print(local_serial_ports)
                 for local_serial_port in local_serial_ports:
                     if (local_serial_port.type == SerialPortType.PIPE and
                         local_serial_port.pipe_name == target_serial_port.pipe_name and
-                        local_serial_port.endpoint == "client" and
-                        target_serial_port.endpoint == "server"):
+                        local_serial_port.pipe_endpoint == "client" and
+                        target_serial_port.pipe_endpoint == "server"):
                             logging.info(f"Local port should be {local_serial_port.linux_device}, target port should be {target_serial_port.linux_device}")
                             return local_serial_port.linux_device
                             # we have a match!
@@ -275,6 +306,7 @@ class vmwareAdapter:
         try:
             self.connection = SmartConnect(user=username, pwd=password, host=host, sslContext=ssl_context, customHeaders=headers)
             self.host = host
+            self.verify = verify
             self.vmname = vmname
 
         except Exception as e:
@@ -320,6 +352,12 @@ class vmwareAdapter:
                 return machine
         return False
 
+    def getMachineByMoid(self, moid):
+        for machine in self.listMachines():
+            if moid in machine.moid:
+                return machine
+        return False
+            
     def getMachineByMAC(self, mac):
         for machine in self.listMachines():
             for network_card in machine.listNetworkCards():
