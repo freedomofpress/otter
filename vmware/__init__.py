@@ -1,7 +1,8 @@
 import logging
 import ssl
 from enum import Enum
-from pyVim.connect import SmartConnect, Disconnect
+from pyVim.connect import SmartConnect
+from pyVim.task import WaitForTask
 from pyVmomi import vim
 
 class NetworkCard():
@@ -84,10 +85,10 @@ class Snapshot:
         print(f"VM:\t\t{self.vm}")
 
     def delete(self):
-        return self.snapshot_object.RemoveSnapshot_Task(True)
+        return self.snapshot_object.snapshot.RemoveSnapshot_Task(True)
 
     def revert(self):
-        return self.snapshot_object.RevertToSnapshot_Task()
+        return WaitForTask(self.snapshot_object.snapshot.RevertToSnapshot_Task())
 
     def rename(self,name):
         logging.error("Snapshot rename not implemented")
@@ -194,14 +195,23 @@ class Machine:
 
         from subprocess import Popen
         #from os import system
-        logging.info("Running websocat on {ip}:{port} target {url}, verify = {verify}")
+        logging.info(f"Running websocat on {ip}:{port} target {url}, verify = {verify}")
         proc = Popen(["websocat", "-b", f"tcp-listen:{ip}:{port}", url, verify, "--protocol", "binary, vmware-vvc"])
+        # wait for websocat to start
+        # TODO: find a better way
+        from time import sleep
+        sleep(0.5)
+        #test = proc.stderr.read()
+
+        #while "websocat" not in proc.stdout.read():
+        #    pass
+
         #exec = system(f"websocat -b tcp-listen:{ip}:{port} {url} {verify} --protocol 'binary, vmware-vvc'")
         self.vnc_instances.append((proc, port))
-        return port
+        return (ip, port)
 
     def killVNC(self, ports=[]):
-        # TODO: find if kill() is better suioted than terminate()
+        # TODO: find if kill() is better suited than terminate()
         for instance in self.vnc_instances:
             # if ports is none, kill all
             if len(ports) == 0:
@@ -291,10 +301,10 @@ class Machine:
         return
 
     def powerOff(self):
-        return self.vmware_object.PowerOff()
+        return WaitForTask(self.vmware_object.PowerOff())
 
     def powerOn(self):
-        return self.vmware_object.PowerOn()
+        return WaitForTask(self.vmware_object.PowerOn())
 
 class vmwareAdapter:
     def __init__(self, username, password, host, vmname="", headers={}, verify=True):
