@@ -106,7 +106,9 @@ Returns a single use VMRC url token for VMRC connections. It requires ESX to be 
 ##### listSerialPorts()
 Returns a python list of `SerialPort` objects. Used internally.
 
-#### listNetworkCards()
+##### listNetworkCards()
 Returns a python list of `NetworkCard` objects. Used internally.
 
+#### getSerialPort(localvm)
+While the name might seem misleading, what this function does is looking for a _local_ serial port (where local is the test orchestrator, which is the machine which is running this code) that is piped to the target machine (the VM represented by the Machine object). If `localvm` is specified, the the current machine is looked up on the ESX server by the name supplied. If not, the machine tries to find itself by looking for which VM has the local MAC address on the cluster (the autodetection works quite well). Then, it enumerates the serial port on the orchestrating machine and the serial ports of the target machine, and iteratively looks for a "named pipe" type serial port that is shared between the two. The target machine should be set as "server" and have a unique name. The test machine should be "client" and share the same unique name. Then the function tries to match that to a local port in Linux style, `/dev/ttySx` and returns that as a string.
 
