@@ -6,10 +6,10 @@ The idea is to develop our own set of tools to automate as much as possible any 
 The backend hypervisor is vmware ESX 7, that is so far the one that works best for nesting Qubes, but the project is structured in classes that would allow seamlessy plugging in another backend.
 
 # Classes
-## VMWare
-The WMWareAdapter class provides more abstract methods for easy interaction with the ESX server building on top of [pyvmomi](https://github.com/vmware/pyvmomi).
+## vmware
+The `vmwareAdapter` class provides more abstract methods for easy interaction with the ESX server building on top of [pyvmomi](https://github.com/vmware/pyvmomi).
 
-#### vmwareAdapter
+### vmwareAdapter
 ```
 class vmwareAdapter:
     def __init__(self, username, password, host, vmname="", headers={}, verify=True):
@@ -49,4 +49,22 @@ Force power off of the machine which name is supplied as parameter.
 ##### listDatastores()
 Returns a list of datastore objects.
 
-#### Machine
+### Machine
+Machine are abstract objects that represent a VM. A few higher level methods and variables are available for programming convenience, but everything in background is still managed by `pyvmomi`. The `pvmomi` original object is always kept available as Machine.vmware_object. Note that objects are not dynamically update, so the power state might change and that change might not be reflected in the object for example.
+
+##### getPowerState()
+False if the machine is Off, True if the machine is On. This is the state _at the object creation and not dynamically updated_.
+
+##### powerOn()
+Synchronous blocking call, returns when the operation has been completed.
+
+##### powerOff()
+Synchronous blocking call, returns when the operation has been completed.
+
+##### listSnapshots()
+Returns a list of Snapshot objects, exhaustive for the Machine object.
+
+##### revertSnapshot(name)
+Revert to the selected snapshot. Internally, it calls `revert()` on a Snapshot object, and uses `pyvmomi WaitForTask` to wait for the operation complete. The call it is thus blocking synchronous: we expect that when the function call returns, the revert operation has completed in the backend.
+ * *name*: target snapshot to revert to.
+
