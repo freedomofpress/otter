@@ -5,6 +5,20 @@ from pyVim.connect import SmartConnect
 from pyVim.task import WaitForTask
 from pyVmomi import vim
 
+class DataStore():
+    def __init__(self, datastore_object):
+        self.datastore_onject = datastore_object
+        self.name = datastore_object.summary.name
+        self.type = datastore_object.summary.type
+        self.capacity = datastore_object.summary.capacity
+        self.free_space = datastore_object.summary.freeSpace
+        self.print()
+
+    def print(self):
+        print(f"Name:\t\t{self.name}")
+        print(f"Capacity:\t{int(self.capacity/1024/1024/1024)} GB")
+        print(f"Free:\t\t{int(self.free_space/1024/1024/1024)} GB")
+
 class NetworkCard():
     def __init__(self, network_card_object):
         self.network_card_object = network_card_object
@@ -381,3 +395,58 @@ class vmwareAdapter:
             if name == machine.name:
                 return machine.powerOff()
         return False
+    
+    def listDatastores(self):
+        content = self.connection.RetrieveContent()
+        hosts = content.viewManager.CreateContainerView(content.rootFolder, [vim.HostSystem], True).view
+
+        datastores = []
+        for host in self.connection.content.rootFolder.childEntity:
+            for datastore in host.datastore:
+                datastores.append(DataStore(datastore))
+
+
+    # TODO: test and complete this functions
+    def listISOs(self):
+        def print_results(searchResults):
+            for result in searchResults:
+                print(result.folderPath)
+                for fileInfo in result.file:
+                    print("%s/%s" % (result.folderPath, fileInfo.path))
+
+        datastores = self.listDatastores()
+
+        spec = vim.host.DatastoreBrowser.SearchSpec(query=[vim.host.DatastoreBrowser.FolderQuery()])
+        for dc in self.connection.content.rootFolder.childEntity:
+            for ds in dc.datastore:
+                task = ds.browser.SearchSubFolders(f"[ds.name]", spec)
+                WaitForTask(task)
+                print_results(task.info.result)
+
+    # TODO: complete this functions
+    def creeateQubesVM(self, name, ram, cpus, disksize, iso, serial_pipename):
+        # convert to GB
+        ram = ram * 1024
+        config = vim.vm.ConfigSpec(numCPUs=cpus, memoryMB=ram, nestedHVEnabled=True)
+        config.flags = vim.vm.FlagInfo()
+        config.flags.virtualExecUsage = vim.vm.FlagInfo.VirtualExecUsage.hvOn
+        config.flags.virtualMmuUsage = vim.vm.FlagInfo.VirtualMmuUsage.on
+
+        disksize_kb = disksize * 1024 * 1024
+        disk = vim.vm.device.VirtualDeviceSpec()
+        disk.fileOperation = "create"
+        disk.operation = vim.vm.device.VirtualDeviceSpec.Operation.add
+        disk.device = vim.vm.device.VirtualDisk()
+        disk.device.backing = vim.vm.device.VirtualDisk.FlatVer2BackingInfo()
+        disk.device.backing.thinProvisioned = True
+        disk.device.backing.diskMode = 'persistent'
+        disk.device.capacityInKB = disksize_kb
+
+
+
+        #disk_spec.device.unitNumber = unit_number
+
+        #disk_spec.device.controllerKey = controller.key
+        #dev_changes.append(disk_spec)
+        #spec.deviceChange = dev_changes
+        #vm.ReconfigVM_Task(spec=spec)
