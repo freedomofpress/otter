@@ -38,6 +38,247 @@ def login_gui(otter, username="user", password="password"):
 
 `example.py` contains an example usage of the helper and how tests can be built on top of them.
 
+## Sample run
+Here is an example run of this code:
+```
+adapter = vmware.vmwareAdapter(username, password, host, headers={}, verify=False)
+
+# Look for a free machine with "Qubes 42 Otter" name prefix
+vm = adapter.getFreeMachine(vms)
+# Initialize otter, will spawn VNC + serial
+otter = Otter(vm, adapter, testfile=None, screenrecord=None)
+# Serial console login example, with success checking
+qubes.login_serial(otter)
+# VNC login example, with success checking
+qubes.login_gui(otter)
+# Run a command on any qube via serial
+qubes.run_command_in_qube_serial_and_wait(otter, "sys-net", "id", "groups")
+# Example of starting a GUI app via serial
+qubes.launch_terminal_dom0(otter)
+# Save logs and poweroff
+otter.exit()
+```
+
+
+```
+INFO:root:Temp output folder is /tmp/tmp0y32jrfw
+INFO:root:Starting Otter, outdir: /tmp/tmp0y32jrfw, vm: Qubes 42 Otter 1
+INFO:root:Reverting to snapshot kickstart
+INFO:root:Powering on machine Qubes 42 Otter 1 id: 16
+INFO:root:listNetworkCards() lists only VMXNET3 type cards!
+INFO:root:listNetworkCards() lists only VMXNET3 type cards!
+INFO:root:listNetworkCards() lists only VMXNET3 type cards!
+INFO:root:listNetworkCards() lists only VMXNET3 type cards!
+INFO:root:listNetworkCards() lists only VMXNET3 type cards!
+INFO:root:listNetworkCards() lists only VMXNET3 type cards!
+INFO:root:listNetworkCards() lists only VMXNET3 type cards!
+INFO:root:listNetworkCards() lists only VMXNET3 type cards!
+INFO:root:listNetworkCards() lists only VMXNET3 type cards!
+INFO:root:listNetworkCards() lists only VMXNET3 type cards!
+INFO:root:Local port should be /dev/ttyS3, target port should be /dev/ttyS0
+INFO:root:VNC is not natively available, using websocket ticket + websocket forwarder
+INFO:root:Running websocat on 127.0.0.1:55881 target wss://192.168.1.200/ticket/330f6b3158480009, verify = -k
+websocat: Unfortunately, serving multiple clients without --exit-on-eof (-E) or with -U option is prone to socket leak in this websocat version
+INFO:root:Attempting VNC connect
+INFO:twisted:Starting factory <vncdotool.client.VNCDoToolFactory object at 0x7fe4812c9b90>
+INFO:twisted:Using protocol version 3.8
+INFO:twisted:Offered <AuthTypes.NONE: 1>
+INFO:twisted:Native PixelFormat(bpp=32, depth=24, bigendian=False, truecolor=True, redmax=255, greenmax=255, bluemax=255, redshift=16, greenshift=8, blueshift=0) bytes=4
+INFO:twisted:Offering <Encoding.RAW: 0>
+INFO:twisted:Offering <Encoding.PSEUDO_DESKTOP_SIZE: -223>
+INFO:twisted:Offering <Encoding.PSEUDO_LAST_RECT: -224>
+INFO:twisted:Offering <Encoding.PSEUDO_QEMU_EXTENDED_KEY_EVENT: -258>
+INFO:twisted:x=0 y=0 w=512 h=400 <Encoding.RAW: 0>
+INFO:twisted:x=512 y=0 w=208 h=400 <Encoding.RAW: 0>
+DEBUG:root:<PIL.Image.Image image mode=RGB size=720x400 at 0x7FE4812BCA50>
+INFO:root:Attempting serial connect to /dev/ttyS3
+INFO:root:Succesfully connected to /dev/ttyS3
+WARNING:easyocr.easyocr:Neither CUDA nor MPS are available - defaulting to CPU. Note: This module is much faster with a GPU.
+INFO:root:Waiting for the serial login prompt
+INFO:root:Waited 33 seconds for the string
+INFO:root:Typing serial username
+INFO:root:Typing serial password
+INFO:root:Reading serial login result
+INFO:root:
+Qubes release 4.2.0 (R4.2)
+Kernel 6.1.75-1.qubes.fc37.x86_64 on an x86_64 (ttyS0)
+
+dom0 login: user
+Password: 
+Last login: Tue Feb 13 16:59:41 on :0
+[user@dom0 ~]$ 
+INFO:root:Waiting for Qubes login screen
+INFO:root:Using capture region with x=250, y=200, w=300, h=200
+DEBUG:vncdotool.client:captureRegion /tmp/tmp0y32jrfw/0.png
+INFO:twisted:x=0 y=0 w=800 h=600 <Encoding.PSEUDO_DESKTOP_SIZE: -223>
+DEBUG:vncdotool.client:captureSave /tmp/tmp0y32jrfw/0.png
+INFO:root:Screen captures as /tmp/tmp0y32jrfw/0.png
+DEBUG:PIL.PngImagePlugin:STREAM b'IHDR' 16 13
+DEBUG:PIL.PngImagePlugin:STREAM b'IDAT' 41 1652
+DEBUG:PIL.PngImagePlugin:STREAM b'IHDR' 16 13
+DEBUG:PIL.PngImagePlugin:STREAM b'IDAT' 41 1652
+DEBUG:PIL.Image:Error closing: Operation on closed image
+INFO:root:Read text '['select', 'which entry', 'highlight', 'selected', '0S', 'to', 'edit', 'the', 'col', 'for', 'COMMand-line', 'executed', 'autoMatically', 'Ss']' from /tmp/tmp0y32jrfw/0.png
+select which entry highlight selected 0S to edit the col for COMMand-line executed autoMatically Ss
+INFO:root:Using capture region with x=250, y=200, w=300, h=200
+DEBUG:vncdotool.client:captureRegion /tmp/tmp0y32jrfw/1.png
+INFO:twisted:x=0 y=0 w=512 h=512 <Encoding.RAW: 0>
+INFO:twisted:x=512 y=0 w=288 h=512 <Encoding.RAW: 0>
+INFO:twisted:x=0 y=512 w=512 h=88 <Encoding.RAW: 0>
+INFO:twisted:x=512 y=512 w=288 h=88 <Encoding.RAW: 0>
+DEBUG:vncdotool.client:captureSave /tmp/tmp0y32jrfw/1.png
+INFO:root:Screen captures as /tmp/tmp0y32jrfw/1.png
+DEBUG:PIL.PngImagePlugin:STREAM b'IHDR' 16 13
+DEBUG:PIL.PngImagePlugin:STREAM b'IDAT' 41 5410
+DEBUG:PIL.PngImagePlugin:STREAM b'IHDR' 16 13
+DEBUG:PIL.PngImagePlugin:STREAM b'IDAT' 41 5410
+DEBUG:PIL.Image:Error closing: Operation on closed image
+INFO:root:Read text '['user', 'Log -']' from /tmp/tmp0y32jrfw/1.png
+INFO:root:Waited 2 seconds for the string
+INFO:root:Typing password and logging in
+DEBUG:vncdotool.client:keyPress p
+DEBUG:vncdotool.client:keyDown p
+DEBUG:vncdotool.client:keyUp p
+DEBUG:vncdotool.client:keyPress a
+DEBUG:vncdotool.client:keyDown a
+DEBUG:vncdotool.client:keyUp a
+DEBUG:vncdotool.client:keyPress s
+DEBUG:vncdotool.client:keyDown s
+DEBUG:vncdotool.client:keyUp s
+DEBUG:vncdotool.client:keyPress s
+DEBUG:vncdotool.client:keyDown s
+DEBUG:vncdotool.client:keyUp s
+DEBUG:vncdotool.client:keyPress w
+DEBUG:vncdotool.client:keyDown w
+DEBUG:vncdotool.client:keyUp w
+DEBUG:vncdotool.client:keyPress o
+DEBUG:vncdotool.client:keyDown o
+DEBUG:vncdotool.client:keyUp o
+DEBUG:vncdotool.client:keyPress r
+DEBUG:vncdotool.client:keyDown r
+DEBUG:vncdotool.client:keyUp r
+DEBUG:vncdotool.client:keyPress d
+DEBUG:vncdotool.client:keyDown d
+DEBUG:vncdotool.client:keyUp d
+DEBUG:vncdotool.client:keyPress enter
+DEBUG:vncdotool.client:keyDown enter
+DEBUG:vncdotool.client:keyUp enter
+INFO:root:Waiting for the desktop
+INFO:root:Using capture region with x=1200, y=0, w=80, h=30
+DEBUG:vncdotool.client:captureRegion /tmp/tmp0y32jrfw/2.png
+INFO:twisted:x=0 y=0 w=1280 h=1024 <Encoding.PSEUDO_DESKTOP_SIZE: -223>
+DEBUG:vncdotool.client:captureSave /tmp/tmp0y32jrfw/2.png
+INFO:root:Screen captures as /tmp/tmp0y32jrfw/2.png
+DEBUG:PIL.PngImagePlugin:STREAM b'IHDR' 16 13
+DEBUG:PIL.PngImagePlugin:STREAM b'IDAT' 41 28
+DEBUG:PIL.PngImagePlugin:STREAM b'IHDR' 16 13
+DEBUG:PIL.PngImagePlugin:STREAM b'IDAT' 41 28
+DEBUG:PIL.Image:Error closing: Operation on closed image
+INFO:root:Read text '[]' from /tmp/tmp0y32jrfw/2.png
+
+INFO:root:Using capture region with x=1200, y=0, w=80, h=30
+DEBUG:vncdotool.client:captureRegion /tmp/tmp0y32jrfw/3.png
+INFO:twisted:x=0 y=0 w=512 h=512 <Encoding.RAW: 0>
+INFO:twisted:x=512 y=0 w=512 h=512 <Encoding.RAW: 0>
+INFO:twisted:x=1024 y=0 w=256 h=512 <Encoding.RAW: 0>
+INFO:twisted:x=0 y=512 w=512 h=128 <Encoding.RAW: 0>
+INFO:twisted:x=512 y=512 w=512 h=128 <Encoding.RAW: 0>
+INFO:twisted:x=1024 y=512 w=256 h=128 <Encoding.RAW: 0>
+INFO:twisted:x=0 y=640 w=512 h=384 <Encoding.RAW: 0>
+INFO:twisted:x=512 y=640 w=512 h=384 <Encoding.RAW: 0>
+INFO:twisted:x=1024 y=640 w=256 h=384 <Encoding.RAW: 0>
+DEBUG:vncdotool.client:captureSave /tmp/tmp0y32jrfw/3.png
+INFO:root:Screen captures as /tmp/tmp0y32jrfw/3.png
+DEBUG:PIL.PngImagePlugin:STREAM b'IHDR' 16 13
+DEBUG:PIL.PngImagePlugin:STREAM b'IDAT' 41 1375
+DEBUG:PIL.PngImagePlugin:STREAM b'IHDR' 16 13
+DEBUG:PIL.PngImagePlugin:STREAM b'IDAT' 41 1375
+DEBUG:PIL.Image:Error closing: Operation on closed image
+INFO:root:Read text '['user']' from /tmp/tmp0y32jrfw/3.png
+INFO:root:Waited 1 seconds for the string
+INFO:root:Waited 1 seconds for the string
+INFO:root:Starting xfce4-terminal in dom0
+INFO:root:
+Qubes release 4.2.0 (R4.2)
+Kernel 6.1.75-1.qubes.fc37.x86_64 on an x86_64 (ttyS0)
+
+dom0 login: user
+Password: 
+Last login: Tue Feb 13 16:59:41 on :0
+[user@dom0 ~]$ qvm-run --pass-io 'sys-net' 'id'
+uid=1000(user) gid=1000(user) groups=1000(user),98(qubes) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023
+[user@dom0 ~]$ export DISPLAY=:0
+[user@dom0 ~]$ xfce4-terminal
+Failed to connect to session manager: Failed to connect to the session manager: SESSION_MANAGER environment variable not defined
+
+INFO:root:Using capture region with x=0, y=30, w=300, h=100
+DEBUG:vncdotool.client:captureRegion /tmp/tmp0y32jrfw/4.png
+INFO:twisted:x=32 y=0 w=224 h=512 <Encoding.RAW: 0>
+INFO:twisted:x=32 y=512 w=224 h=48 <Encoding.RAW: 0>
+INFO:twisted:x=800 y=0 w=48 h=512 <Encoding.RAW: 0>
+INFO:twisted:x=800 y=512 w=48 h=48 <Encoding.RAW: 0>
+INFO:twisted:x=0 y=16 w=32 h=512 <Encoding.RAW: 0>
+INFO:twisted:x=0 y=528 w=32 h=32 <Encoding.RAW: 0>
+INFO:twisted:x=256 y=16 w=512 h=512 <Encoding.RAW: 0>
+INFO:twisted:x=768 y=16 w=32 h=512 <Encoding.RAW: 0>
+INFO:twisted:x=256 y=528 w=512 h=32 <Encoding.RAW: 0>
+INFO:twisted:x=768 y=528 w=32 h=32 <Encoding.RAW: 0>
+INFO:twisted:x=1056 y=32 w=208 h=96 <Encoding.RAW: 0>
+INFO:twisted:x=128 y=560 w=112 h=16 <Encoding.RAW: 0>
+DEBUG:vncdotool.client:captureSave /tmp/tmp0y32jrfw/4.png
+INFO:root:Screen captures as /tmp/tmp0y32jrfw/4.png
+DEBUG:PIL.PngImagePlugin:STREAM b'IHDR' 16 13
+DEBUG:PIL.PngImagePlugin:STREAM b'IDAT' 41 5530
+DEBUG:PIL.PngImagePlugin:STREAM b'IHDR' 16 13
+DEBUG:PIL.PngImagePlugin:STREAM b'IDAT' 41 5530
+DEBUG:PIL.Image:Error closing: Operation on closed image
+INFO:root:Read text '['File', 'Edit', 'View', 'Terminal', 'Tabs', 'Help', '[userddomo ~]s']' from /tmp/tmp0y32jrfw/4.png
+INFO:root:Waited 0 seconds for the string
+INFO:root:Dsconnecting from VNC
+INFO:twisted:Stopping factory <vncdotool.client.VNCDoToolFactory object at 0x7fe4812c9b90>
+INFO:twisted:Main loop terminated.
+INFO:root:Killing any websocat forwarder
+INFO:root:Powering off the vm Qubes 42 Otter 1
+INFO:root:Saving the serial output to /tmp/tmp0y32jrfw/serial.log
+```
+
+With the following serial output:
+```
+Qubes release 4.2.0 (R4.2)
+Kernel 6.1.75-1.qubes.fc37.x86_64 on an x86_64 (ttyS0)
+
+dom0 login: user
+Password: 
+Last login: Tue Feb 13 16:59:41 on :0
+[user@dom0 ~]$ qvm-run --pass-io 'sys-net' 'id'
+uid=1000(user) gid=1000(user) groups=1000(user),98(qubes) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023
+[user@dom0 ~]$ export DISPLAY=:0
+[user@dom0 ~]$ xfce4-terminal
+Failed to connect to session manager: Failed to connect to the session manager: SESSION_MANAGER environment variable not defined
+
+```
+
+And the following screen captures:
+ * Waiting for login prompt
+
+![image](https://github.com/freedomofpress/otter/assets/66009328/934331f4-2688-4519-b6b7-4bdd3fd99e5b)
+
+ * Login prompt found
+
+![image](https://github.com/freedomofpress/otter/assets/66009328/771c0b9e-31a3-491a-8420-f621b1d1c328)
+
+ * Waiting for desktop session
+
+![image](https://github.com/freedomofpress/otter/assets/66009328/d6526a7c-e022-41bd-9098-ff24f0e75450)
+
+ * Successful login verified
+
+![image](https://github.com/freedomofpress/otter/assets/66009328/d0dfeda5-b69c-4973-a7c9-64dbb04d38d6)
+
+ * dom0 fce4-terminal start success
+
+![image](https://github.com/freedomofpress/otter/assets/66009328/ea7b5e84-9fa0-431b-95bf-bfff99bb5ecd)
+
 # Classes
 ## otter
 Otter is the main automation helper.
