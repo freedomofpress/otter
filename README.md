@@ -5,7 +5,84 @@ The idea is to develop our own set of tools to automate as much as possible any 
 
 The backend hypervisor is vmware ESX 7, that is so far the one that works best for nesting Qubes, but the project is structured in classes that would allow seamlessy plugging in another backend.
 
+## Config
+In the Otter root, set the config in `otter.ini`.
+```
+[esx]
+server = <host>
+username = <username>
+password = <password>
+vms = <vm namespace>
+```
+
+## Examples
+The `helpers` folder cointains basic helper functions for Qubes.
+
+```
+def login_gui(otter, username="user", password="password"):
+    # we expect 800x600 screen at login
+    logging.info("Waiting for Qubes login screen")
+    assert(otter.wait_screen("Log", (250, 200, 300, 200)))
+    # we do not support switching from the selected username for now, we can do it if needed
+    # sends credentials
+    logging.info("Typing password and logging in")
+    for char in password:
+        otter.vnc_client.keyPress(char)
+    otter.vnc_client.keyPress("enter")
+
+    logging.info("Waiting for the desktop")
+    sleep(5)
+
+    assert(otter.wait_screen("user", (1200, 0, 80, 30)))
+```
+
+`example.py` contains an example usage of the helper and how tests can be built on top of them.
+
 # Classes
+## otter
+Otter is the main automation helper.
+```
+class Otter:
+    def __init__(self, machine, adapter, testfile, outputfolder="", screenrecord=False, start_snapshot="kickstart", baudrate=115200):
+```
+ * *machine*: is a `Machine` object. A powered off free machine has to be picked before, using for instance `vmware.getFreeMachine(name)`.
+ * *adapter*: the `vmwareAdapter` object.
+ * *testfile*: currently not in use.
+ * *outputfolder*: the folder where to store the resulting artifacts (screenshots and logs). If empty is a new temporary dir. If it does not exists creation is attempted.
+ * *screenrecord*: whether to screen record the whole VNC session. Currently not implemented, we need to choose the software to do so.
+ * *start_snapshot*: the name of the _snapshot_ to reset at each run.
+ * *baudrate*: serial baudrate, vmware defaults at 115200.
+
+What the initialization function will do then is:
+ 1. Test the output dire, create it or get a temporary one
+ 2. Restore the `start_snapshotz snapshot and wait for completion
+ 3. Power on the VM
+ 4. Find the Linux device for the shared serial port
+ 5. Open the serial port and check for basic errors
+ 6. Get a local VNC socket
+ 7. Open the VNC socket and test for basic errors
+ 8. Initialize easyOCR
+
+If initialized succesfully, it the offers a few helpers for test automation. Any screenshot is saved with an incremental number for debugging purposes. The whole serial communication is kept in memory and logged at `Otter.exit()`.
+
+##### capture_screen_wrapper(self, coordinates=())
+Save a screenshot, or a portion of the screen if coordinates are provided. Returns the `filename`.
+
+ * *coordinates*: tuple of (start x, start y, width, height).
+
+##### get_screen_text(filename)
+Will return a joined list of all the OCRed text on a given screenshot.
+ * *filename*: the screenshot full path.
+
+##### wait_screen(self, string, coordinates=(), timeout=360):
+Stay in a blocking loop until `string` is found on the OCRed text, or until `timeout` seconds have passed.
+
+##### wait_serial(self, string, timeout=360):
+Stay in a blocking loop until `string` is found on the serial console, or until `timeout` seconds have passed.
+
+##### read_serial(self)
+Returns raw bytes from the serial console.
+
 ## vmware
 The `vmwareAdapter` class provides more abstract methods for easy interaction with the ESX server building on top of [pyvmomi](https://github.com/vmware/pyvmomi).
 
