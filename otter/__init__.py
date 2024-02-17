@@ -167,12 +167,6 @@ class Otter:
         self.vnc_client.framebufferUpdateRequest(False)
         return self.vnc_client.screen
 
-    def screnshot(self, name):
-        self.vnc_client.captureScreen(f"{self.outputfolder}/{name}.png")
-
-    def wait_for_screen_text(self, text, timeout):
-        pass
-
     def exit(self):
         # TODO: maybe if something went wrong we can snapshot here like
         #if self.fail:
